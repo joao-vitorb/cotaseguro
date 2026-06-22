@@ -3,6 +3,17 @@ spring:
     name: cotaseguro
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5440/cotaseguro}
+    username: ${DB_USERNAME:cotaseguro}
+    password: ${DB_PASSWORD:cotaseguro}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
 
 server:
   port: 8080

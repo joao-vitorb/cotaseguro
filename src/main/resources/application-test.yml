@@ -1,0 +1,8 @@
+spring:
+  flyway:
+    locations: classpath:db/migration
+    ignore-migration-patterns: "*:missing"
+
+logging:
+  level:
+    com.cotaseguro: INFO

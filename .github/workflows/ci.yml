@@ -11,6 +11,21 @@ jobs:
     name: Build and test
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: cotaseguro
+          POSTGRES_USER: cotaseguro
+          POSTGRES_PASSWORD: cotaseguro
+        ports:
+          - 5440:5432
+        options: >-
+          --health-cmd "pg_isready -U cotaseguro -d cotaseguro"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
