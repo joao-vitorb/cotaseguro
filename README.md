@@ -58,13 +58,29 @@ Windows PowerShell:
 .\mvnw.cmd spring-boot:run
 ```
 
-The API starts on `http://localhost:8080`.
+The API starts on `http://localhost:8088`.
 
 ## Useful endpoints
 
-- Swagger UI: `http://localhost:8080/swagger-ui`
-- OpenAPI document: `http://localhost:8080/api-docs`
-- Health check: `http://localhost:8080/actuator/health`
+- Swagger UI: `http://localhost:8088/swagger-ui`
+- OpenAPI document: `http://localhost:8088/api-docs`
+- Health check: `http://localhost:8088/actuator/health`
+- Login: `POST http://localhost:8088/api/v1/auth/login`
+
+## Authentication
+
+The API is secured with JWT. Send credentials to `POST /api/v1/auth/login` to
+receive a token, then send it on protected requests as
+`Authorization: Bearer <token>`.
+
+In the `dev` profile an admin user is seeded on startup if it does not exist
+(username `admin`, password `admin123` by default). These values can be
+overridden with the `app.admin.username` and `app.admin.password` properties.
+The JWT secret and expiration come from the `JWT_SECRET` and `JWT_EXPIRATION_MS`
+environment variables.
+
+Creating new users is restricted to admins through
+`POST /api/v1/auth/register`.
 
 ## Profiles
 

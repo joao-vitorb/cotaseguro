@@ -16,7 +16,13 @@ spring:
     locations: classpath:db/migration
 
 server:
-  port: 8080
+  port: ${SERVER_PORT:8088}
+
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:dev-only-secret-change-me-please-0123456789abcdef}
+      expiration-ms: ${JWT_EXPIRATION_MS:3600000}
 
 springdoc:
   api-docs:
