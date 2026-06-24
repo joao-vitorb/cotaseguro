@@ -9,6 +9,7 @@ import com.cotaseguro.dto.QuoteResponse;
 import com.cotaseguro.exception.ConflictException;
 import com.cotaseguro.exception.ResourceNotFoundException;
 import com.cotaseguro.mapper.QuoteMapper;
+import com.cotaseguro.observability.ApplicationMetrics;
 import com.cotaseguro.repository.CustomerRepository;
 import com.cotaseguro.repository.QuoteRepository;
 import java.math.BigDecimal;
@@ -24,16 +25,19 @@ public class QuoteService {
     private final CustomerRepository customerRepository;
     private final PremiumCalculator premiumCalculator;
     private final QuoteMapper quoteMapper;
+    private final ApplicationMetrics applicationMetrics;
 
     public QuoteService(
             QuoteRepository quoteRepository,
             CustomerRepository customerRepository,
             PremiumCalculator premiumCalculator,
-            QuoteMapper quoteMapper) {
+            QuoteMapper quoteMapper,
+            ApplicationMetrics applicationMetrics) {
         this.quoteRepository = quoteRepository;
         this.customerRepository = customerRepository;
         this.premiumCalculator = premiumCalculator;
         this.quoteMapper = quoteMapper;
+        this.applicationMetrics = applicationMetrics;
     }
 
     @Transactional
@@ -51,7 +55,9 @@ public class QuoteService {
         quote.setPremium(premium);
         quote.setStatus(QuoteStatus.PENDING);
 
-        return quoteMapper.toResponse(quoteRepository.save(quote));
+        Quote savedQuote = quoteRepository.save(quote);
+        applicationMetrics.quoteGenerated();
+        return quoteMapper.toResponse(savedQuote);
     }
 
     @Transactional(readOnly = true)

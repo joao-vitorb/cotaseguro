@@ -21,7 +21,8 @@ public class SecurityConfig {
             "/swagger-ui/**",
             "/swagger-ui.html",
             "/api-docs/**",
-            "/actuator/health"
+            "/actuator/health",
+            "/actuator/info"
     };
 
     private final JwtService jwtService;

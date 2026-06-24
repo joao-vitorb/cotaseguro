@@ -17,6 +17,7 @@ import com.cotaseguro.dto.PolicyResponse;
 import com.cotaseguro.exception.ConflictException;
 import com.cotaseguro.exception.ResourceNotFoundException;
 import com.cotaseguro.mapper.PolicyMapper;
+import com.cotaseguro.observability.ApplicationMetrics;
 import com.cotaseguro.repository.PolicyRepository;
 import com.cotaseguro.repository.QuoteRepository;
 import java.util.Optional;
@@ -38,6 +39,9 @@ class PolicyServiceTest {
 
     @Spy
     private PolicyMapper policyMapper;
+
+    @Mock
+    private ApplicationMetrics applicationMetrics;
 
     @InjectMocks
     private PolicyService policyService;

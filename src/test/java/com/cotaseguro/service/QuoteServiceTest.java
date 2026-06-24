@@ -16,6 +16,7 @@ import com.cotaseguro.dto.QuoteResponse;
 import com.cotaseguro.exception.ConflictException;
 import com.cotaseguro.exception.ResourceNotFoundException;
 import com.cotaseguro.mapper.QuoteMapper;
+import com.cotaseguro.observability.ApplicationMetrics;
 import com.cotaseguro.repository.CustomerRepository;
 import com.cotaseguro.repository.QuoteRepository;
 import java.math.BigDecimal;
@@ -42,6 +43,9 @@ class QuoteServiceTest {
 
     @Spy
     private QuoteMapper quoteMapper;
+
+    @Mock
+    private ApplicationMetrics applicationMetrics;
 
     @InjectMocks
     private QuoteService quoteService;
