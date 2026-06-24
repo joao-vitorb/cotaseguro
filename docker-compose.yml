@@ -1,4 +1,32 @@
 services:
+  app:
+    build: .
+    image: cotaseguro:latest
+    container_name: cotaseguro-app
+    profiles: ["app"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: 8088
+      DB_URL: jdbc:postgresql://postgres:5432/cotaseguro
+      DB_USERNAME: cotaseguro
+      DB_PASSWORD: cotaseguro
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: cotaseguro
+      RABBITMQ_PASSWORD: cotaseguro
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: change-me-in-real-deployments-0123456789abcdef
+    ports:
+      - "8088:8088"
+
   postgres:
     image: postgres:16-alpine
     container_name: cotaseguro-postgres
