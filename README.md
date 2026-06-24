@@ -13,6 +13,7 @@ project is backend-first and documented with Swagger.
 - Spring Data JPA + Hibernate
 - PostgreSQL
 - Flyway (database migrations)
+- RabbitMQ (asynchronous policy issuance)
 - Spring Boot Actuator (health check)
 - springdoc-openapi (Swagger UI)
 - Maven (via Maven Wrapper)
@@ -20,7 +21,7 @@ project is backend-first and documented with Swagger.
 ## Requirements
 
 - Java 21
-- Docker (PostgreSQL runs in a container, used by the app and the tests)
+- Docker (PostgreSQL and RabbitMQ run in containers)
 
 Maven is not required: the project ships with the Maven Wrapper, which downloads
 the right Maven version automatically.
@@ -43,6 +44,15 @@ docker compose down
 
 Default connection settings can be overridden with the `DB_URL`, `DB_USERNAME`
 and `DB_PASSWORD` environment variables.
+
+## Asynchronous policy issuance
+
+Issuing a policy is asynchronous. `POST /api/v1/policies` validates the request
+(the quote must exist, be approved and not already have a policy) and, when
+valid, publishes a message to RabbitMQ and returns `202 Accepted`. A consumer
+then creates the policy idempotently. Poll `GET /api/v1/policies` to see the
+issued policy. RabbitMQ also runs through Docker Compose; its management UI is
+available at `http://localhost:15673` (user/password `cotaseguro`).
 
 ## Running
 

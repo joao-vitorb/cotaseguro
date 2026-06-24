@@ -50,7 +50,6 @@ Authorization: Bearer {{token}}
 
 ###
 
-# @name issuePolicy
 POST {{host}}/api/v1/policies
 Authorization: Bearer {{token}}
 Content-Type: {{contentType}}
@@ -61,12 +60,13 @@ Content-Type: {{contentType}}
 
 ###
 
+# Issuance is asynchronous (202 Accepted). Poll the list until the policy appears.
 GET {{host}}/api/v1/policies?status=ACTIVE&page=0&size=10
 Authorization: Bearer {{token}}
 
 ###
 
-@policyId = {{issuePolicy.response.body.id}}
+@policyId = 1
 
 GET {{host}}/api/v1/policies/{{policyId}}
 Authorization: Bearer {{token}}

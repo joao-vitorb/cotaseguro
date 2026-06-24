@@ -10,10 +10,14 @@ import com.cotaseguro.dto.PolicyResponse;
 import com.cotaseguro.exception.ConflictException;
 import com.cotaseguro.exception.ResourceNotFoundException;
 import com.cotaseguro.mapper.PolicyMapper;
+import com.cotaseguro.messaging.PolicyIssuanceMessage;
+import com.cotaseguro.messaging.PolicyIssuancePublisher;
 import com.cotaseguro.observability.ApplicationMetrics;
 import com.cotaseguro.repository.PolicyRepository;
 import com.cotaseguro.repository.QuoteRepository;
 import java.time.LocalDate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -23,30 +27,48 @@ import org.springframework.transaction.annotation.Transactional;
 public class PolicyService {
 
     private static final int POLICY_DURATION_YEARS = 1;
+    private static final Logger log = LoggerFactory.getLogger(PolicyService.class);
 
     private final PolicyRepository policyRepository;
     private final QuoteRepository quoteRepository;
     private final PolicyMapper policyMapper;
     private final ApplicationMetrics applicationMetrics;
+    private final PolicyIssuancePublisher policyIssuancePublisher;
 
     public PolicyService(
             PolicyRepository policyRepository,
             QuoteRepository quoteRepository,
             PolicyMapper policyMapper,
-            ApplicationMetrics applicationMetrics) {
+            ApplicationMetrics applicationMetrics,
+            PolicyIssuancePublisher policyIssuancePublisher) {
         this.policyRepository = policyRepository;
         this.quoteRepository = quoteRepository;
         this.policyMapper = policyMapper;
         this.applicationMetrics = applicationMetrics;
+        this.policyIssuancePublisher = policyIssuancePublisher;
     }
 
-    @Transactional
-    public PolicyResponse issue(PolicyIssueRequest request) {
+    @Transactional(readOnly = true)
+    public void requestIssuance(PolicyIssueRequest request) {
         Quote quote = quoteRepository.findById(request.quoteId())
                 .orElseThrow(() -> new ResourceNotFoundException("Quote not found"));
 
         ensureQuoteIsApproved(quote);
         ensurePolicyIsNotAlreadyIssued(quote.getId());
+
+        policyIssuancePublisher.publish(new PolicyIssuanceMessage(quote.getId()));
+    }
+
+    @Transactional
+    public void issue(Long quoteId) {
+        if (policyRepository.existsByQuoteId(quoteId)) {
+            log.info("Policy already issued for quote {}, skipping", quoteId);
+            return;
+        }
+
+        Quote quote = quoteRepository.findById(quoteId)
+                .orElseThrow(() -> new ResourceNotFoundException("Quote not found"));
+        ensureQuoteIsApproved(quote);
 
         LocalDate startDate = LocalDate.now();
 
@@ -58,9 +80,8 @@ public class PolicyService {
         policy.setStartDate(startDate);
         policy.setEndDate(startDate.plusYears(POLICY_DURATION_YEARS));
 
-        Policy savedPolicy = policyRepository.save(policy);
+        policyRepository.save(policy);
         applicationMetrics.policyIssued();
-        return policyMapper.toResponse(savedPolicy);
     }
 
     @Transactional(readOnly = true)

@@ -1,5 +1,6 @@
 package com.cotaseguro.policy;
 
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -7,12 +8,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.cotaseguro.domain.Customer;
 import com.cotaseguro.domain.InsuranceType;
+import com.cotaseguro.domain.Policy;
+import com.cotaseguro.domain.PolicyStatus;
 import com.cotaseguro.domain.Quote;
 import com.cotaseguro.domain.QuoteStatus;
 import com.cotaseguro.domain.Role;
 import com.cotaseguro.domain.User;
 import com.cotaseguro.dto.LoginRequest;
 import com.cotaseguro.dto.PolicyIssueRequest;
+import com.cotaseguro.messaging.PolicyIssuanceMessage;
+import com.cotaseguro.messaging.PolicyIssuancePublisher;
 import com.cotaseguro.repository.CustomerRepository;
 import com.cotaseguro.repository.PolicyRepository;
 import com.cotaseguro.repository.QuoteRepository;
@@ -28,6 +33,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -57,6 +63,9 @@ class PolicyControllerIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @MockitoBean
+    private PolicyIssuancePublisher policyIssuancePublisher;
+
     private Customer customer;
 
     @BeforeEach
@@ -72,20 +81,20 @@ class PolicyControllerIntegrationTest {
     }
 
     @Test
-    void issuePolicyFromApprovedQuoteReturnsCreated() throws Exception {
+    void issuanceRequestFromApprovedQuoteIsAccepted() throws Exception {
         long quoteId = saveQuote(QuoteStatus.APPROVED).getId();
 
         mockMvc.perform(post("/api/v1/policies")
                         .header("Authorization", bearer("admin", "admin123"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new PolicyIssueRequest(quoteId))))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status").value("ACTIVE"))
-                .andExpect(jsonPath("$.quoteId").value((int) quoteId));
+                .andExpect(status().isAccepted());
+
+        verify(policyIssuancePublisher).publish(new PolicyIssuanceMessage(quoteId));
     }
 
     @Test
-    void issuePolicyAsMemberReturnsForbidden() throws Exception {
+    void issuanceRequestAsMemberReturnsForbidden() throws Exception {
         long quoteId = saveQuote(QuoteStatus.APPROVED).getId();
 
         mockMvc.perform(post("/api/v1/policies")
@@ -96,7 +105,7 @@ class PolicyControllerIntegrationTest {
     }
 
     @Test
-    void issuePolicyWithoutTokenReturnsUnauthorized() throws Exception {
+    void issuanceRequestWithoutTokenReturnsUnauthorized() throws Exception {
         long quoteId = saveQuote(QuoteStatus.APPROVED).getId();
 
         mockMvc.perform(post("/api/v1/policies")
@@ -106,7 +115,7 @@ class PolicyControllerIntegrationTest {
     }
 
     @Test
-    void issuePolicyFromPendingQuoteReturnsConflict() throws Exception {
+    void issuanceRequestFromPendingQuoteReturnsConflict() throws Exception {
         long quoteId = saveQuote(QuoteStatus.PENDING).getId();
 
         mockMvc.perform(post("/api/v1/policies")
@@ -117,7 +126,7 @@ class PolicyControllerIntegrationTest {
     }
 
     @Test
-    void issuePolicyForUnknownQuoteReturnsNotFound() throws Exception {
+    void issuanceRequestForUnknownQuoteReturnsNotFound() throws Exception {
         mockMvc.perform(post("/api/v1/policies")
                         .header("Authorization", bearer("admin", "admin123"))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -126,35 +135,31 @@ class PolicyControllerIntegrationTest {
     }
 
     @Test
-    void issuePolicyTwiceForSameQuoteReturnsConflict() throws Exception {
-        long quoteId = saveQuote(QuoteStatus.APPROVED).getId();
-        String adminToken = bearer("admin", "admin123");
-        issuePolicy(adminToken, quoteId);
+    void issuanceRequestWhenPolicyAlreadyIssuedReturnsConflict() throws Exception {
+        Quote quote = saveQuote(QuoteStatus.APPROVED);
+        savePolicy(quote);
 
         mockMvc.perform(post("/api/v1/policies")
-                        .header("Authorization", adminToken)
+                        .header("Authorization", bearer("admin", "admin123"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new PolicyIssueRequest(quoteId))))
+                        .content(objectMapper.writeValueAsString(new PolicyIssueRequest(quote.getId()))))
                 .andExpect(status().isConflict());
     }
 
     @Test
     void cancelPolicyAsAdminReturnsCancelled() throws Exception {
-        long quoteId = saveQuote(QuoteStatus.APPROVED).getId();
-        String adminToken = bearer("admin", "admin123");
-        long policyId = issuePolicy(adminToken, quoteId);
+        long policyId = savePolicy(saveQuote(QuoteStatus.APPROVED)).getId();
 
         mockMvc.perform(post("/api/v1/policies/{id}/cancel", policyId)
-                        .header("Authorization", adminToken))
+                        .header("Authorization", bearer("admin", "admin123")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELLED"));
     }
 
     @Test
     void cancelAlreadyCancelledPolicyReturnsConflict() throws Exception {
-        long quoteId = saveQuote(QuoteStatus.APPROVED).getId();
+        long policyId = savePolicy(saveQuote(QuoteStatus.APPROVED)).getId();
         String adminToken = bearer("admin", "admin123");
-        long policyId = issuePolicy(adminToken, quoteId);
 
         mockMvc.perform(post("/api/v1/policies/{id}/cancel", policyId).header("Authorization", adminToken))
                 .andExpect(status().isOk());
@@ -165,26 +170,13 @@ class PolicyControllerIntegrationTest {
 
     @Test
     void listPoliciesByStatusReturnsOk() throws Exception {
-        long quoteId = saveQuote(QuoteStatus.APPROVED).getId();
-        String adminToken = bearer("admin", "admin123");
-        issuePolicy(adminToken, quoteId);
+        savePolicy(saveQuote(QuoteStatus.APPROVED));
 
         mockMvc.perform(get("/api/v1/policies")
                         .param("status", "ACTIVE")
                         .header("Authorization", bearer("member", "member123")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1));
-    }
-
-    private long issuePolicy(String bearerToken, long quoteId) throws Exception {
-        MvcResult result = mockMvc.perform(post("/api/v1/policies")
-                        .header("Authorization", bearerToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new PolicyIssueRequest(quoteId))))
-                .andExpect(status().isCreated())
-                .andReturn();
-
-        return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asLong();
     }
 
     private String bearer(String username, String password) throws Exception {
@@ -206,6 +198,17 @@ class PolicyControllerIntegrationTest {
         quote.setPremium(new BigDecimal("2500.00"));
         quote.setStatus(status);
         return quoteRepository.save(quote);
+    }
+
+    private Policy savePolicy(Quote quote) {
+        Policy policy = new Policy();
+        policy.setQuote(quote);
+        policy.setCustomer(quote.getCustomer());
+        policy.setNumber("POL-" + quote.getId());
+        policy.setStatus(PolicyStatus.ACTIVE);
+        policy.setStartDate(LocalDate.now());
+        policy.setEndDate(LocalDate.now().plusYears(1));
+        return policyRepository.save(policy);
     }
 
     private Customer saveCustomer() {

@@ -2,6 +2,15 @@ spring:
   flyway:
     locations: classpath:db/migration
     ignore-migration-patterns: "repeatable:missing"
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
+
+management:
+  health:
+    rabbit:
+      enabled: false
 
 app:
   security:
