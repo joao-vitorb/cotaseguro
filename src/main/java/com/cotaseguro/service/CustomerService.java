@@ -3,11 +3,14 @@ package com.cotaseguro.service;
 import com.cotaseguro.domain.Customer;
 import com.cotaseguro.dto.CustomerRequest;
 import com.cotaseguro.dto.CustomerResponse;
+import com.cotaseguro.config.CacheConfig;
 import com.cotaseguro.dto.PageResponse;
 import com.cotaseguro.exception.ConflictException;
 import com.cotaseguro.exception.ResourceNotFoundException;
 import com.cotaseguro.mapper.CustomerMapper;
 import com.cotaseguro.repository.CustomerRepository;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -44,11 +47,13 @@ public class CustomerService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CacheConfig.CUSTOMERS_CACHE, key = "#id")
     public CustomerResponse getById(Long id) {
         return customerMapper.toResponse(findCustomerOrThrow(id));
     }
 
     @Transactional
+    @CacheEvict(cacheNames = CacheConfig.CUSTOMERS_CACHE, key = "#id")
     public CustomerResponse update(Long id, CustomerRequest request) {
         Customer customer = findCustomerOrThrow(id);
         ensureDocumentIsAvailableForUpdate(request.document(), id);
@@ -59,6 +64,7 @@ public class CustomerService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = CacheConfig.CUSTOMERS_CACHE, key = "#id")
     public void delete(Long id) {
         Customer customer = findCustomerOrThrow(id);
         customerRepository.delete(customer);
