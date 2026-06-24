@@ -14,6 +14,7 @@ project is backend-first and documented with Swagger.
 - PostgreSQL
 - Flyway (database migrations)
 - RabbitMQ (asynchronous policy issuance)
+- Redis (query caching)
 - Spring Boot Actuator (health check)
 - springdoc-openapi (Swagger UI)
 - Maven (via Maven Wrapper)
@@ -53,6 +54,12 @@ valid, publishes a message to RabbitMQ and returns `202 Accepted`. A consumer
 then creates the policy idempotently. Poll `GET /api/v1/policies` to see the
 issued policy. RabbitMQ also runs through Docker Compose; its management UI is
 available at `http://localhost:15673` (user/password `cotaseguro`).
+
+## Caching
+
+Customer lookups by id are cached in Redis (`GET /api/v1/customers/{id}`) and the
+cached entry is evicted when the customer is updated or deleted. Redis runs
+through Docker Compose. In the test profile an in-memory cache is used instead.
 
 ## Running
 

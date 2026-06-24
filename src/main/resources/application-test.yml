@@ -6,10 +6,14 @@ spring:
     listener:
       simple:
         auto-startup: false
+  cache:
+    type: simple
 
 management:
   health:
     rabbit:
+      enabled: false
+    redis:
       enabled: false
 
 app:

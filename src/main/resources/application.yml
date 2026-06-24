@@ -25,6 +25,12 @@ spring:
     listener:
       simple:
         default-requeue-rejected: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6380}
+  cache:
+    type: redis
 
 server:
   port: ${SERVER_PORT:8088}
