@@ -84,6 +84,11 @@ environment variables.
 Creating new users is restricted to admins through
 `POST /api/v1/auth/register`.
 
+The login endpoint is rate limited per client IP to slow down brute-force
+attempts (`429 Too Many Requests` once the limit is reached). The limit is
+configurable through the `LOGIN_RATE_LIMIT_MAX_ATTEMPTS` and
+`LOGIN_RATE_LIMIT_WINDOW_SECONDS` environment variables.
+
 ## Observability
 
 - Every response carries an `X-Request-Id` header (generated or taken from the
