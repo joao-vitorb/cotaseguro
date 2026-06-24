@@ -12,6 +12,7 @@ import com.cotaseguro.domain.Policy;
 import com.cotaseguro.domain.PolicyStatus;
 import com.cotaseguro.domain.Quote;
 import com.cotaseguro.domain.QuoteStatus;
+import com.cotaseguro.dto.PageResponse;
 import com.cotaseguro.dto.PolicyIssueRequest;
 import com.cotaseguro.dto.PolicyResponse;
 import com.cotaseguro.exception.ConflictException;
@@ -20,6 +21,7 @@ import com.cotaseguro.mapper.PolicyMapper;
 import com.cotaseguro.observability.ApplicationMetrics;
 import com.cotaseguro.repository.PolicyRepository;
 import com.cotaseguro.repository.QuoteRepository;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +29,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 @ExtendWith(MockitoExtension.class)
 class PolicyServiceTest {
@@ -131,6 +137,67 @@ class PolicyServiceTest {
                 .isInstanceOf(ConflictException.class);
 
         verify(policyRepository, never()).save(any(Policy.class));
+    }
+
+    @Test
+    void getByIdReturnsPolicy() {
+        when(policyRepository.findById(20L)).thenReturn(Optional.of(activePolicy()));
+
+        PolicyResponse response = policyService.getById(20L);
+
+        assertThat(response.id()).isEqualTo(20L);
+    }
+
+    @Test
+    void listByStatusUsesStatusQuery() {
+        when(policyRepository.findByStatus(any(), any()))
+                .thenReturn(new PageImpl<>(List.of(activePolicy())));
+
+        PageResponse<PolicyResponse> result = policyService.list(null, PolicyStatus.ACTIVE, PageRequest.of(0, 10));
+
+        assertThat(result.totalElements()).isEqualTo(1);
+    }
+
+    @Test
+    void listByCustomerAndStatusUsesCombinedQuery() {
+        when(policyRepository.findByCustomerIdAndStatus(any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(activePolicy())));
+
+        PageResponse<PolicyResponse> result = policyService.list(5L, PolicyStatus.ACTIVE, PageRequest.of(0, 10));
+
+        assertThat(result.totalElements()).isEqualTo(1);
+    }
+
+    @Test
+    void listByCustomerOnlyUsesCustomerQuery() {
+        when(policyRepository.findByCustomerId(any(), any()))
+                .thenReturn(new PageImpl<>(List.of(activePolicy())));
+
+        PageResponse<PolicyResponse> result = policyService.list(5L, null, PageRequest.of(0, 10));
+
+        assertThat(result.totalElements()).isEqualTo(1);
+    }
+
+    @Test
+    void listWithoutFiltersUsesFindAll() {
+        when(policyRepository.findAll(any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(activePolicy())));
+
+        PageResponse<PolicyResponse> result = policyService.list(null, null, PageRequest.of(0, 10));
+
+        assertThat(result.totalElements()).isEqualTo(1);
+    }
+
+    private Policy activePolicy() {
+        Quote quote = quoteWithStatus(QuoteStatus.APPROVED);
+
+        Policy policy = new Policy();
+        policy.setId(20L);
+        policy.setQuote(quote);
+        policy.setCustomer(quote.getCustomer());
+        policy.setNumber("POL-000007");
+        policy.setStatus(PolicyStatus.ACTIVE);
+        return policy;
     }
 
 }

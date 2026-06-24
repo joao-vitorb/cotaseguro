@@ -115,3 +115,7 @@ The tests run against a real PostgreSQL database, so start it first:
 docker compose up -d
 ./mvnw verify
 ```
+
+Test coverage is measured with JaCoCo. Running `verify` produces an HTML report
+at `target/site/jacoco/index.html` and fails the build if line coverage drops
+below the configured minimum.
