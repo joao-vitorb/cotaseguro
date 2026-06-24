@@ -1,0 +1,77 @@
+@host = http://localhost:8088
+@contentType = application/json
+
+# @name login
+POST {{host}}/api/v1/auth/login
+Content-Type: {{contentType}}
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+###
+
+@token = {{login.response.body.token}}
+
+# @name createCustomer
+POST {{host}}/api/v1/customers
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "name": "Henry Ford",
+  "document": "88888888888",
+  "birthDate": "1979-07-30",
+  "email": "henry.ford@example.com"
+}
+
+###
+
+@customerId = {{createCustomer.response.body.id}}
+
+# @name createQuote
+POST {{host}}/api/v1/quotes
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "customerId": {{customerId}},
+  "insuranceType": "HOME",
+  "coverageAmount": 250000.00
+}
+
+###
+
+@quoteId = {{createQuote.response.body.id}}
+
+POST {{host}}/api/v1/quotes/{{quoteId}}/approve
+Authorization: Bearer {{token}}
+
+###
+
+# @name issuePolicy
+POST {{host}}/api/v1/policies
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "quoteId": {{quoteId}}
+}
+
+###
+
+GET {{host}}/api/v1/policies?status=ACTIVE&page=0&size=10
+Authorization: Bearer {{token}}
+
+###
+
+@policyId = {{issuePolicy.response.body.id}}
+
+GET {{host}}/api/v1/policies/{{policyId}}
+Authorization: Bearer {{token}}
+
+###
+
+POST {{host}}/api/v1/policies/{{policyId}}/cancel
+Authorization: Bearer {{token}}

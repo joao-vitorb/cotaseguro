@@ -11,6 +11,8 @@ import com.cotaseguro.domain.User;
 import com.cotaseguro.dto.CustomerRequest;
 import com.cotaseguro.dto.LoginRequest;
 import com.cotaseguro.repository.CustomerRepository;
+import com.cotaseguro.repository.PolicyRepository;
+import com.cotaseguro.repository.QuoteRepository;
 import com.cotaseguro.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
@@ -40,6 +42,12 @@ class CustomerControllerIntegrationTest {
     private CustomerRepository customerRepository;
 
     @Autowired
+    private QuoteRepository quoteRepository;
+
+    @Autowired
+    private PolicyRepository policyRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -47,6 +55,8 @@ class CustomerControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        policyRepository.deleteAll();
+        quoteRepository.deleteAll();
         customerRepository.deleteAll();
         userRepository.deleteAll();
         saveUser("admin", "admin123", Role.ADMIN);
