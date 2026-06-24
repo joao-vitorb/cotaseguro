@@ -4,15 +4,15 @@ import com.cotaseguro.domain.Customer;
 import com.cotaseguro.dto.CustomerRequest;
 import com.cotaseguro.dto.CustomerResponse;
 import com.cotaseguro.dto.PageResponse;
+import com.cotaseguro.exception.ConflictException;
+import com.cotaseguro.exception.ResourceNotFoundException;
 import com.cotaseguro.mapper.CustomerMapper;
 import com.cotaseguro.repository.CustomerRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class CustomerService {
@@ -66,30 +66,30 @@ public class CustomerService {
 
     private Customer findCustomerOrThrow(Long id) {
         return customerRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
     }
 
     private void ensureDocumentIsAvailable(String document) {
         if (customerRepository.existsByDocument(document)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Document already registered");
+            throw new ConflictException("Document already registered");
         }
     }
 
     private void ensureEmailIsAvailable(String email) {
         if (customerRepository.existsByEmail(email)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered");
+            throw new ConflictException("Email already registered");
         }
     }
 
     private void ensureDocumentIsAvailableForUpdate(String document, Long id) {
         if (customerRepository.existsByDocumentAndIdNot(document, id)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Document already registered");
+            throw new ConflictException("Document already registered");
         }
     }
 
     private void ensureEmailIsAvailableForUpdate(String email, Long id) {
         if (customerRepository.existsByEmailAndIdNot(email, id)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered");
+            throw new ConflictException("Email already registered");
         }
     }
 

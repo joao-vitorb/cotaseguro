@@ -7,16 +7,16 @@ import com.cotaseguro.domain.QuoteStatus;
 import com.cotaseguro.dto.PageResponse;
 import com.cotaseguro.dto.PolicyIssueRequest;
 import com.cotaseguro.dto.PolicyResponse;
+import com.cotaseguro.exception.ConflictException;
+import com.cotaseguro.exception.ResourceNotFoundException;
 import com.cotaseguro.mapper.PolicyMapper;
 import com.cotaseguro.repository.PolicyRepository;
 import com.cotaseguro.repository.QuoteRepository;
 import java.time.LocalDate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class PolicyService {
@@ -39,7 +39,7 @@ public class PolicyService {
     @Transactional
     public PolicyResponse issue(PolicyIssueRequest request) {
         Quote quote = quoteRepository.findById(request.quoteId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Quote not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Quote not found"));
 
         ensureQuoteIsApproved(quote);
         ensurePolicyIsNotAlreadyIssued(quote.getId());
@@ -92,24 +92,24 @@ public class PolicyService {
 
     private Policy findPolicyOrThrow(Long id) {
         return policyRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Policy not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Policy not found"));
     }
 
     private void ensureQuoteIsApproved(Quote quote) {
         if (quote.getStatus() != QuoteStatus.APPROVED) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Quote is not approved");
+            throw new ConflictException("Quote is not approved");
         }
     }
 
     private void ensurePolicyIsNotAlreadyIssued(Long quoteId) {
         if (policyRepository.existsByQuoteId(quoteId)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Policy already issued for quote");
+            throw new ConflictException("Policy already issued for quote");
         }
     }
 
     private void ensurePolicyIsActive(Policy policy) {
         if (policy.getStatus() != PolicyStatus.ACTIVE) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Policy is not active");
+            throw new ConflictException("Policy is not active");
         }
     }
 

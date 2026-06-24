@@ -6,16 +6,16 @@ import com.cotaseguro.domain.QuoteStatus;
 import com.cotaseguro.dto.PageResponse;
 import com.cotaseguro.dto.QuoteRequest;
 import com.cotaseguro.dto.QuoteResponse;
+import com.cotaseguro.exception.ConflictException;
+import com.cotaseguro.exception.ResourceNotFoundException;
 import com.cotaseguro.mapper.QuoteMapper;
 import com.cotaseguro.repository.CustomerRepository;
 import com.cotaseguro.repository.QuoteRepository;
 import java.math.BigDecimal;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class QuoteService {
@@ -39,7 +39,7 @@ public class QuoteService {
     @Transactional
     public QuoteResponse create(QuoteRequest request) {
         Customer customer = customerRepository.findById(request.customerId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
 
         BigDecimal premium = premiumCalculator.calculate(
                 request.insuranceType(), request.coverageAmount(), customer.getBirthDate());
@@ -98,12 +98,12 @@ public class QuoteService {
 
     private Quote findQuoteOrThrow(Long id) {
         return quoteRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Quote not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Quote not found"));
     }
 
     private void ensureQuoteIsPending(Quote quote) {
         if (quote.getStatus() != QuoteStatus.PENDING) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Quote is not pending");
+            throw new ConflictException("Quote is not pending");
         }
     }
 
