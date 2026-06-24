@@ -1,0 +1,116 @@
+package com.cotaseguro.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.cotaseguro.domain.Customer;
+import com.cotaseguro.domain.InsuranceType;
+import com.cotaseguro.domain.Quote;
+import com.cotaseguro.domain.QuoteStatus;
+import com.cotaseguro.dto.QuoteRequest;
+import com.cotaseguro.dto.QuoteResponse;
+import com.cotaseguro.mapper.QuoteMapper;
+import com.cotaseguro.repository.CustomerRepository;
+import com.cotaseguro.repository.QuoteRepository;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Optional;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Spy;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
+@ExtendWith(MockitoExtension.class)
+class QuoteServiceTest {
+
+    @Mock
+    private QuoteRepository quoteRepository;
+
+    @Mock
+    private CustomerRepository customerRepository;
+
+    @Spy
+    private PremiumCalculator premiumCalculator;
+
+    @Spy
+    private QuoteMapper quoteMapper;
+
+    @InjectMocks
+    private QuoteService quoteService;
+
+    private Customer adultCustomer() {
+        Customer customer = new Customer();
+        customer.setId(5L);
+        customer.setBirthDate(LocalDate.now().minusYears(30));
+        return customer;
+    }
+
+    @Test
+    void createComputesPremiumAndStartsPending() {
+        when(customerRepository.findById(5L)).thenReturn(Optional.of(adultCustomer()));
+        when(quoteRepository.save(any(Quote.class))).thenAnswer(invocation -> {
+            Quote quote = invocation.getArgument(0);
+            quote.setId(1L);
+            return quote;
+        });
+
+        QuoteResponse response = quoteService.create(
+                new QuoteRequest(5L, InsuranceType.AUTO, new BigDecimal("50000.00")));
+
+        assertThat(response.id()).isEqualTo(1L);
+        assertThat(response.customerId()).isEqualTo(5L);
+        assertThat(response.status()).isEqualTo(QuoteStatus.PENDING);
+        assertThat(response.premium()).isEqualByComparingTo("2500.00");
+    }
+
+    @Test
+    void createWithUnknownCustomerThrowsNotFound() {
+        when(customerRepository.findById(5L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> quoteService.create(
+                new QuoteRequest(5L, InsuranceType.AUTO, new BigDecimal("50000.00"))))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(exception ->
+                        assertThat(((ResponseStatusException) exception).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+
+        verify(quoteRepository, never()).save(any(Quote.class));
+    }
+
+    @Test
+    void approveChangesPendingQuoteToApproved() {
+        Quote quote = new Quote();
+        quote.setId(1L);
+        quote.setCustomer(adultCustomer());
+        quote.setStatus(QuoteStatus.PENDING);
+        when(quoteRepository.findById(1L)).thenReturn(Optional.of(quote));
+        when(quoteRepository.save(any(Quote.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        QuoteResponse response = quoteService.approve(1L);
+
+        assertThat(response.status()).isEqualTo(QuoteStatus.APPROVED);
+    }
+
+    @Test
+    void approveNonPendingQuoteThrowsConflict() {
+        Quote quote = new Quote();
+        quote.setId(1L);
+        quote.setStatus(QuoteStatus.APPROVED);
+        when(quoteRepository.findById(1L)).thenReturn(Optional.of(quote));
+
+        assertThatThrownBy(() -> quoteService.approve(1L))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(exception ->
+                        assertThat(((ResponseStatusException) exception).getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+
+        verify(quoteRepository, never()).save(any(Quote.class));
+    }
+
+}
