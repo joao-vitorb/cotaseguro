@@ -1,0 +1,64 @@
+@host = http://localhost:8088
+@contentType = application/json
+
+# @name login
+POST {{host}}/api/v1/auth/login
+Content-Type: {{contentType}}
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+###
+
+@token = {{login.response.body.token}}
+
+# @name createCustomer
+POST {{host}}/api/v1/customers
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "name": "Frank Miller",
+  "document": "66666666666",
+  "birthDate": "1988-02-15",
+  "email": "frank.miller@example.com"
+}
+
+###
+
+@customerId = {{createCustomer.response.body.id}}
+
+# @name createQuote
+POST {{host}}/api/v1/quotes
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "customerId": {{customerId}},
+  "insuranceType": "AUTO",
+  "coverageAmount": 50000.00
+}
+
+###
+
+GET {{host}}/api/v1/quotes?status=PENDING&page=0&size=10
+Authorization: Bearer {{token}}
+
+###
+
+@quoteId = {{createQuote.response.body.id}}
+
+GET {{host}}/api/v1/quotes/{{quoteId}}
+Authorization: Bearer {{token}}
+
+###
+
+POST {{host}}/api/v1/quotes/{{quoteId}}/approve
+Authorization: Bearer {{token}}
+
+###
+
+POST {{host}}/api/v1/quotes/{{quoteId}}/reject
+Authorization: Bearer {{token}}
