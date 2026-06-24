@@ -12,6 +12,7 @@ import com.cotaseguro.domain.User;
 import com.cotaseguro.dto.LoginRequest;
 import com.cotaseguro.dto.QuoteRequest;
 import com.cotaseguro.repository.CustomerRepository;
+import com.cotaseguro.repository.PolicyRepository;
 import com.cotaseguro.repository.QuoteRepository;
 import com.cotaseguro.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -46,6 +47,9 @@ class QuoteControllerIntegrationTest {
     private QuoteRepository quoteRepository;
 
     @Autowired
+    private PolicyRepository policyRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -55,6 +59,7 @@ class QuoteControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        policyRepository.deleteAll();
         quoteRepository.deleteAll();
         customerRepository.deleteAll();
         userRepository.deleteAll();
