@@ -10,6 +10,8 @@ import static org.mockito.Mockito.when;
 import com.cotaseguro.domain.Customer;
 import com.cotaseguro.dto.CustomerRequest;
 import com.cotaseguro.dto.CustomerResponse;
+import com.cotaseguro.exception.ConflictException;
+import com.cotaseguro.exception.ResourceNotFoundException;
 import com.cotaseguro.mapper.CustomerMapper;
 import com.cotaseguro.repository.CustomerRepository;
 import java.time.LocalDate;
@@ -20,8 +22,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class CustomerServiceTest {
@@ -60,9 +60,7 @@ class CustomerServiceTest {
         when(customerRepository.existsByDocument("11111111111")).thenReturn(true);
 
         assertThatThrownBy(() -> customerService.create(sampleRequest()))
-                .isInstanceOf(ResponseStatusException.class)
-                .satisfies(exception ->
-                        assertThat(((ResponseStatusException) exception).getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+                .isInstanceOf(ConflictException.class);
 
         verify(customerRepository, never()).save(any(Customer.class));
     }
@@ -72,9 +70,7 @@ class CustomerServiceTest {
         when(customerRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> customerService.getById(99L))
-                .isInstanceOf(ResponseStatusException.class)
-                .satisfies(exception ->
-                        assertThat(((ResponseStatusException) exception).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test
@@ -82,9 +78,7 @@ class CustomerServiceTest {
         when(customerRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> customerService.delete(99L))
-                .isInstanceOf(ResponseStatusException.class)
-                .satisfies(exception ->
-                        assertThat(((ResponseStatusException) exception).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+                .isInstanceOf(ResourceNotFoundException.class);
 
         verify(customerRepository, never()).delete(any(Customer.class));
     }

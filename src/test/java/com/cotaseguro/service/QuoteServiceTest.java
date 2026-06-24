@@ -13,6 +13,8 @@ import com.cotaseguro.domain.Quote;
 import com.cotaseguro.domain.QuoteStatus;
 import com.cotaseguro.dto.QuoteRequest;
 import com.cotaseguro.dto.QuoteResponse;
+import com.cotaseguro.exception.ConflictException;
+import com.cotaseguro.exception.ResourceNotFoundException;
 import com.cotaseguro.mapper.QuoteMapper;
 import com.cotaseguro.repository.CustomerRepository;
 import com.cotaseguro.repository.QuoteRepository;
@@ -25,8 +27,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class QuoteServiceTest {
@@ -77,9 +77,7 @@ class QuoteServiceTest {
 
         assertThatThrownBy(() -> quoteService.create(
                 new QuoteRequest(5L, InsuranceType.AUTO, new BigDecimal("50000.00"))))
-                .isInstanceOf(ResponseStatusException.class)
-                .satisfies(exception ->
-                        assertThat(((ResponseStatusException) exception).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+                .isInstanceOf(ResourceNotFoundException.class);
 
         verify(quoteRepository, never()).save(any(Quote.class));
     }
@@ -106,9 +104,7 @@ class QuoteServiceTest {
         when(quoteRepository.findById(1L)).thenReturn(Optional.of(quote));
 
         assertThatThrownBy(() -> quoteService.approve(1L))
-                .isInstanceOf(ResponseStatusException.class)
-                .satisfies(exception ->
-                        assertThat(((ResponseStatusException) exception).getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+                .isInstanceOf(ConflictException.class);
 
         verify(quoteRepository, never()).save(any(Quote.class));
     }

@@ -14,6 +14,8 @@ import com.cotaseguro.domain.Quote;
 import com.cotaseguro.domain.QuoteStatus;
 import com.cotaseguro.dto.PolicyIssueRequest;
 import com.cotaseguro.dto.PolicyResponse;
+import com.cotaseguro.exception.ConflictException;
+import com.cotaseguro.exception.ResourceNotFoundException;
 import com.cotaseguro.mapper.PolicyMapper;
 import com.cotaseguro.repository.PolicyRepository;
 import com.cotaseguro.repository.QuoteRepository;
@@ -24,8 +26,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class PolicyServiceTest {
@@ -77,9 +77,7 @@ class PolicyServiceTest {
         when(quoteRepository.findById(7L)).thenReturn(Optional.of(quoteWithStatus(QuoteStatus.PENDING)));
 
         assertThatThrownBy(() -> policyService.issue(new PolicyIssueRequest(7L)))
-                .isInstanceOf(ResponseStatusException.class)
-                .satisfies(exception ->
-                        assertThat(((ResponseStatusException) exception).getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+                .isInstanceOf(ConflictException.class);
 
         verify(policyRepository, never()).save(any(Policy.class));
     }
@@ -90,9 +88,7 @@ class PolicyServiceTest {
         when(policyRepository.existsByQuoteId(7L)).thenReturn(true);
 
         assertThatThrownBy(() -> policyService.issue(new PolicyIssueRequest(7L)))
-                .isInstanceOf(ResponseStatusException.class)
-                .satisfies(exception ->
-                        assertThat(((ResponseStatusException) exception).getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+                .isInstanceOf(ConflictException.class);
 
         verify(policyRepository, never()).save(any(Policy.class));
     }
@@ -102,9 +98,7 @@ class PolicyServiceTest {
         when(quoteRepository.findById(7L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> policyService.issue(new PolicyIssueRequest(7L)))
-                .isInstanceOf(ResponseStatusException.class)
-                .satisfies(exception ->
-                        assertThat(((ResponseStatusException) exception).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test
@@ -130,9 +124,7 @@ class PolicyServiceTest {
         when(policyRepository.findById(1L)).thenReturn(Optional.of(policy));
 
         assertThatThrownBy(() -> policyService.cancel(1L))
-                .isInstanceOf(ResponseStatusException.class)
-                .satisfies(exception ->
-                        assertThat(((ResponseStatusException) exception).getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+                .isInstanceOf(ConflictException.class);
 
         verify(policyRepository, never()).save(any(Policy.class));
     }

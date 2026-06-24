@@ -6,15 +6,14 @@ import com.cotaseguro.dto.LoginRequest;
 import com.cotaseguro.dto.LoginResponse;
 import com.cotaseguro.dto.RegisterRequest;
 import com.cotaseguro.dto.UserResponse;
+import com.cotaseguro.exception.ConflictException;
 import com.cotaseguro.repository.UserRepository;
 import com.cotaseguro.security.JwtService;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AuthService {
@@ -38,10 +37,11 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest request) {
-        authenticate(request.username(), request.password());
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.username(), request.password()));
 
         User user = userRepository.findByUsername(request.username())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
+                .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
 
         String token = jwtService.generateToken(user.getUsername(), user.getRole().name());
         return new LoginResponse(token, BEARER_TOKEN_TYPE, user.getUsername(), user.getRole());
@@ -49,7 +49,7 @@ public class AuthService {
 
     public UserResponse register(RegisterRequest request) {
         if (userRepository.existsByUsername(request.username())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already taken");
+            throw new ConflictException("Username already taken");
         }
 
         User user = new User();
@@ -60,14 +60,6 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
         return new UserResponse(savedUser.getId(), savedUser.getUsername(), savedUser.getRole());
-    }
-
-    private void authenticate(String username, String password) {
-        try {
-            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(username, password));
-        } catch (BadCredentialsException exception) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
-        }
     }
 
 }
