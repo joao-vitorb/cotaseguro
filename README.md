@@ -65,6 +65,8 @@ The API starts on `http://localhost:8088`.
 - Swagger UI: `http://localhost:8088/swagger-ui`
 - OpenAPI document: `http://localhost:8088/api-docs`
 - Health check: `http://localhost:8088/actuator/health`
+- Application info: `http://localhost:8088/actuator/info`
+- Metrics (Prometheus, authenticated): `http://localhost:8088/actuator/prometheus`
 - Login: `POST http://localhost:8088/api/v1/auth/login`
 
 ## Authentication
@@ -82,13 +84,22 @@ environment variables.
 Creating new users is restricted to admins through
 `POST /api/v1/auth/register`.
 
+## Observability
+
+- Every response carries an `X-Request-Id` header (generated or taken from the
+  request), and that id is added to the logs through the MDC for correlation.
+- Custom business metrics are exposed via Micrometer: `cotaseguro.quotes.generated`
+  and `cotaseguro.policies.issued`.
+- Health and info are public; metrics and Prometheus require authentication.
+- In the `prod` profile logs are emitted as structured JSON (ECS format).
+
 ## Profiles
 
 Configuration is split by Spring profile. The active profile defaults to `dev`
 and can be overridden with the `SPRING_PROFILES_ACTIVE` environment variable.
 
-- `dev`: verbose logging and detailed health output.
-- `prod`: minimal logging and no health details.
+- `dev`: verbose logging, detailed health output and demo data seed.
+- `prod`: structured JSON logging and no health details.
 - `test`: used by the test suite.
 
 ## Build and test

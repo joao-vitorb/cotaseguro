@@ -3,6 +3,13 @@ management:
     health:
       show-details: never
 
+spring:
+  flyway:
+    ignore-migration-patterns: "repeatable:missing"
+
 logging:
+  structured:
+    format:
+      console: ecs
   level:
     com.cotaseguro: INFO

@@ -10,6 +10,7 @@ import com.cotaseguro.dto.PolicyResponse;
 import com.cotaseguro.exception.ConflictException;
 import com.cotaseguro.exception.ResourceNotFoundException;
 import com.cotaseguro.mapper.PolicyMapper;
+import com.cotaseguro.observability.ApplicationMetrics;
 import com.cotaseguro.repository.PolicyRepository;
 import com.cotaseguro.repository.QuoteRepository;
 import java.time.LocalDate;
@@ -26,14 +27,17 @@ public class PolicyService {
     private final PolicyRepository policyRepository;
     private final QuoteRepository quoteRepository;
     private final PolicyMapper policyMapper;
+    private final ApplicationMetrics applicationMetrics;
 
     public PolicyService(
             PolicyRepository policyRepository,
             QuoteRepository quoteRepository,
-            PolicyMapper policyMapper) {
+            PolicyMapper policyMapper,
+            ApplicationMetrics applicationMetrics) {
         this.policyRepository = policyRepository;
         this.quoteRepository = quoteRepository;
         this.policyMapper = policyMapper;
+        this.applicationMetrics = applicationMetrics;
     }
 
     @Transactional
@@ -54,7 +58,9 @@ public class PolicyService {
         policy.setStartDate(startDate);
         policy.setEndDate(startDate.plusYears(POLICY_DURATION_YEARS));
 
-        return policyMapper.toResponse(policyRepository.save(policy));
+        Policy savedPolicy = policyRepository.save(policy);
+        applicationMetrics.policyIssued();
+        return policyMapper.toResponse(savedPolicy);
     }
 
     @Transactional(readOnly = true)
