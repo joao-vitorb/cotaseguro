@@ -18,6 +18,8 @@ import com.cotaseguro.dto.PolicyResponse;
 import com.cotaseguro.exception.ConflictException;
 import com.cotaseguro.exception.ResourceNotFoundException;
 import com.cotaseguro.mapper.PolicyMapper;
+import com.cotaseguro.messaging.PolicyIssuanceMessage;
+import com.cotaseguro.messaging.PolicyIssuancePublisher;
 import com.cotaseguro.observability.ApplicationMetrics;
 import com.cotaseguro.repository.PolicyRepository;
 import com.cotaseguro.repository.QuoteRepository;
@@ -49,6 +51,9 @@ class PolicyServiceTest {
     @Mock
     private ApplicationMetrics applicationMetrics;
 
+    @Mock
+    private PolicyIssuancePublisher policyIssuancePublisher;
+
     @InjectMocks
     private PolicyService policyService;
 
@@ -64,51 +69,67 @@ class PolicyServiceTest {
     }
 
     @Test
-    void issueFromApprovedQuoteCreatesActivePolicy() {
+    void requestIssuanceWithApprovedQuotePublishesMessage() {
         when(quoteRepository.findById(7L)).thenReturn(Optional.of(quoteWithStatus(QuoteStatus.APPROVED)));
         when(policyRepository.existsByQuoteId(7L)).thenReturn(false);
-        when(policyRepository.save(any(Policy.class))).thenAnswer(invocation -> {
-            Policy policy = invocation.getArgument(0);
-            policy.setId(1L);
-            return policy;
-        });
 
-        PolicyResponse response = policyService.issue(new PolicyIssueRequest(7L));
+        policyService.requestIssuance(new PolicyIssueRequest(7L));
 
-        assertThat(response.id()).isEqualTo(1L);
-        assertThat(response.quoteId()).isEqualTo(7L);
-        assertThat(response.customerId()).isEqualTo(5L);
-        assertThat(response.status()).isEqualTo(PolicyStatus.ACTIVE);
-        assertThat(response.number()).isEqualTo("POL-000007");
-    }
-
-    @Test
-    void issueFromPendingQuoteThrowsConflict() {
-        when(quoteRepository.findById(7L)).thenReturn(Optional.of(quoteWithStatus(QuoteStatus.PENDING)));
-
-        assertThatThrownBy(() -> policyService.issue(new PolicyIssueRequest(7L)))
-                .isInstanceOf(ConflictException.class);
-
+        verify(policyIssuancePublisher).publish(new PolicyIssuanceMessage(7L));
         verify(policyRepository, never()).save(any(Policy.class));
     }
 
     @Test
-    void issueWhenPolicyAlreadyExistsThrowsConflict() {
+    void requestIssuanceFromPendingQuoteThrowsConflict() {
+        when(quoteRepository.findById(7L)).thenReturn(Optional.of(quoteWithStatus(QuoteStatus.PENDING)));
+
+        assertThatThrownBy(() -> policyService.requestIssuance(new PolicyIssueRequest(7L)))
+                .isInstanceOf(ConflictException.class);
+
+        verify(policyIssuancePublisher, never()).publish(any(PolicyIssuanceMessage.class));
+    }
+
+    @Test
+    void requestIssuanceWhenPolicyAlreadyExistsThrowsConflict() {
         when(quoteRepository.findById(7L)).thenReturn(Optional.of(quoteWithStatus(QuoteStatus.APPROVED)));
         when(policyRepository.existsByQuoteId(7L)).thenReturn(true);
 
-        assertThatThrownBy(() -> policyService.issue(new PolicyIssueRequest(7L)))
+        assertThatThrownBy(() -> policyService.requestIssuance(new PolicyIssueRequest(7L)))
                 .isInstanceOf(ConflictException.class);
 
-        verify(policyRepository, never()).save(any(Policy.class));
+        verify(policyIssuancePublisher, never()).publish(any(PolicyIssuanceMessage.class));
     }
 
     @Test
-    void issueUnknownQuoteThrowsNotFound() {
+    void requestIssuanceForUnknownQuoteThrowsNotFound() {
         when(quoteRepository.findById(7L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> policyService.issue(new PolicyIssueRequest(7L)))
+        assertThatThrownBy(() -> policyService.requestIssuance(new PolicyIssueRequest(7L)))
                 .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(policyIssuancePublisher, never()).publish(any(PolicyIssuanceMessage.class));
+    }
+
+    @Test
+    void issueCreatesActivePolicy() {
+        when(policyRepository.existsByQuoteId(7L)).thenReturn(false);
+        when(quoteRepository.findById(7L)).thenReturn(Optional.of(quoteWithStatus(QuoteStatus.APPROVED)));
+        when(policyRepository.save(any(Policy.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        policyService.issue(7L);
+
+        verify(policyRepository).save(any(Policy.class));
+        verify(applicationMetrics).policyIssued();
+    }
+
+    @Test
+    void issueWhenPolicyAlreadyExistsIsIdempotent() {
+        when(policyRepository.existsByQuoteId(7L)).thenReturn(true);
+
+        policyService.issue(7L);
+
+        verify(policyRepository, never()).save(any(Policy.class));
+        verify(applicationMetrics, never()).policyIssued();
     }
 
     @Test
