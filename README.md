@@ -124,6 +124,27 @@ and can be overridden with the `SPRING_PROFILES_ACTIVE` environment variable.
 - `prod`: structured JSON logging and no health details.
 - `test`: used by the test suite.
 
+## Docker image and full stack
+
+A multi-stage `Dockerfile` builds a small runtime image that runs as a non-root
+user. Build it with:
+
+```bash
+docker build -t cotaseguro:latest .
+```
+
+The whole stack (API plus PostgreSQL, RabbitMQ and Redis) can be started with the
+`app` Compose profile, which builds the image and wires the API to the other
+services:
+
+```bash
+docker compose --profile app up -d --build
+```
+
+The API runs with the `prod` profile and is available at
+`http://localhost:8088`. Without the profile, `docker compose up -d` starts only
+the supporting services for local development.
+
 ## Build and test
 
 The tests run against a real PostgreSQL database, so start it first:
