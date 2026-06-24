@@ -3,6 +3,12 @@ spring:
     locations: classpath:db/migration
     ignore-migration-patterns: "repeatable:missing"
 
+app:
+  security:
+    rate-limit:
+      login:
+        enabled: false
+
 logging:
   level:
     com.cotaseguro: INFO
