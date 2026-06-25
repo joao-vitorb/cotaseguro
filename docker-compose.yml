@@ -12,7 +12,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: prod
+      SPRING_PROFILES_ACTIVE: dev
       SERVER_PORT: 8088
       DB_URL: jdbc:postgresql://postgres:5432/cotaseguro
       DB_USERNAME: cotaseguro
