@@ -145,6 +145,13 @@ The API runs with the `prod` profile and is available at
 `http://localhost:8088`. Without the profile, `docker compose up -d` starts only
 the supporting services for local development.
 
+After tests pass, the CI/CD pipeline builds and publishes the image to the GitHub
+Container Registry on pushes to `main` and on `v*.*.*` tags:
+
+```bash
+docker pull ghcr.io/joao-vitorb/cotaseguro:latest
+```
+
 ## Build and test
 
 The tests run against a real PostgreSQL database, so start it first:
